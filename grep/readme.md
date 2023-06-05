@@ -1,4 +1,4 @@
-# Touch Lite
+# GREP
 
 Installation
 ```bash
