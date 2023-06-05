@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
+
+	"github.com/grafana/regexp"
 )
 
 // Define the command-line flags
