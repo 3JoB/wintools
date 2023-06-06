@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -12,28 +11,28 @@ import (
 )
 
 func AB(c *cli.Context) error {
-	// 从 flag 获取选项
-	uri := c.String("url")
-	if uri == "" {
-		if c.Args().Len() != 0 {
-			l := c.Args().Len() - 1
-			if l < 0 {
-				l = 0
-			}
-			uri = c.Args().Slice()[l]
+	uri := ""
+	if c.Args().Len() != 0 {
+		l := c.Args().Len() - 1
+		if l < 0 {
+			l = 0
 		}
+		uri = c.Args().Slice()[l]
 	}
-	if _, err := url.Parse(uri); err != nil {
+	if uri == "" {
 		return PrintUsage()
 	}
-	n := c.Int("n")
-	concurrency := c.Int("c")
-	// 构建请求
+	n := CliFlagRequestNumber.Get(c)
+	concurrency := CliFlagConcurrentRequestNumber.Get(c)
+
 	req := fasthttp.AcquireRequest()
 	defer fasthttp.ReleaseRequest(req)
 	req.SetRequestURI(uri)
-	// 添加 header
-	headers := c.StringSlice("H")
+
+	content_type := CliFlagContentType.Get(c)
+	cookie := CliFlagCookieNameValue.Get(c)
+
+	headers := CliFlagCustomHeader.Get(c)
 	if len(headers) != 0 {
 		for _, h := range headers {
 			split := strings.SplitN(h, ":", 2)
@@ -43,22 +42,28 @@ func AB(c *cli.Context) error {
 			req.Header.Add(split[0], split[1])
 		}
 	}
-	// Basic 认证
-	if c.String("A") != "" {
-		auth := strings.SplitN(c.String("A"), ":", 2)
+
+	basic_auth := CliFlagAuthUsernamePassword.Get(c)
+
+	if basic_auth != "" {
+		auth := strings.SplitN(basic_auth, ":", 2)
 		req.Header.Set("Authorization", "Basic "+basicAuth(auth[0], auth[1]))
 	}
-	// Cookie
-	if c.String("C") != "" {
-		req.Header.Add("cookie", c.String("C"))
+
+	if cookie != "" {
+		req.Header.Add("cookie", cookie)
 	}
-	// 发出请求
+
+	if content_type != "" {
+		req.Header.Set("Content-Type", content_type)
+	}
+
 	resp := fasthttp.AcquireResponse()
 	if err := fasthttp.Do(req, resp); err != nil {
 		return err
 	}
 	defer fasthttp.ReleaseResponse(resp)
-	// 统计结果
+
 	type stats struct {
 		requests   int
 		failures   int
@@ -69,15 +74,14 @@ func AB(c *cli.Context) error {
 		stddev     time.Duration
 	}
 	results := stats{}
-	results.requests = n // 总请求数
+	results.requests = n
 	fstart := time.Now()
 	for i := 0; i < n; i++ {
-		// 并发请求
 		go func() {
 			start := time.Now()
 			respx := fasthttp.AcquireResponse()
 			if err := fasthttp.Do(req, respx); err != nil {
-				results.failures++ // 失败的请求数
+				results.failures++
 			} else {
 				results.durations = append(results.durations, time.Since(start))
 			}
@@ -85,15 +89,13 @@ func AB(c *cli.Context) error {
 		}()
 	}
 
-	// 等待所有请求完成
 	time.Sleep(time.Duration(n/concurrency) * time.Second)
 
-	// 计算统计信息
-	results.mean = mean(results.durations)     // 平均响应时间
-	results.median = median(results.durations) // 中位数响应时间
-	results.stddev = stddev(results.durations) // 标准偏差
+	results.mean = mean(results.durations)
+	results.median = median(results.durations)
+	results.stddev = stddev(results.durations)
 	end := time.Now()
-	results.throughput = float64(n) / end.Sub(fstart).Seconds() // 吞吐量
+	results.throughput = float64(n) / end.Sub(fstart).Seconds()
 
 	// 打印结果
 	fmt.Printf("Server Software: %s\n", unsafeConvert.StringReflect(resp.Header.Server()))
@@ -101,7 +103,7 @@ func AB(c *cli.Context) error {
 	fmt.Printf("Time taken for tests: %d secondsv\n", int(time.Now().Add(time.Duration(n/concurrency)*time.Second).Sub(fstart)/time.Second))
 	fmt.Printf("Complete requests: %d\n", n)
 	fmt.Printf("Failed requests: %d\n", results.failures)
-	fmt.Printf("Total transferred: %d bytes\n", n*1024) // 估计值
+	fmt.Printf("Total transferred: %d bytes\n", n*1024)
 	fmt.Printf("Requests per second: %.2f [#/sec]\n", results.throughput)
 	fmt.Printf("Time per request: %.3f [ms]\n", float64(results.mean)/float64(time.Millisecond))
 	fmt.Printf("Mean: %v [ms]\n", results.mean.Milliseconds())
