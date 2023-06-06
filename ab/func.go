@@ -15,11 +15,13 @@ func AB(c *cli.Context) error {
 	// 从 flag 获取选项
 	uri := c.String("url")
 	if uri == "" {
-		l := c.Args().Len() - 1
-		if l < 0 {
-			l = 0
-		} 
-		uri = c.Args().Slice()[l]
+		if c.Args().Len() != 0 {
+			l := c.Args().Len() - 1
+			if l < 0 {
+				l = 0
+			}
+			uri = c.Args().Slice()[l]
+		}
 	}
 	if _, err := url.Parse(uri); err != nil {
 		return PrintUsage()

@@ -10,18 +10,18 @@ wintools only guarantees the basic usability, and will not try to fully restore 
 ## AB (Apache Bench)
 Installation
 ```bash
-$ go install github.com/3JoB/wintools/ab
+$ go install github.com/3JoB/wintools/ab@latest
 ```
 
 ## Grep
 Installation
 ```bash
-$ go install github.com/3JoB/wintools/grep
+$ go install github.com/3JoB/wintools/grep@latest
 ```
 
 ## Touch
 
 Installation
 ```bash
-$ go install github.com/3JoB/wintools/touch
+$ go install github.com/3JoB/wintools/touch@latest
 ```
