@@ -18,7 +18,7 @@ func AB(c *cli.Context) error {
 		uri = c.Args().Get(c.Args().Len() - 1)
 	}
 	if _, err := url.Parse(uri); err != nil {
-		return err
+		return PrintUsage()
 	}
 	n := c.Int("n")
 	concurrency := c.Int("c")
